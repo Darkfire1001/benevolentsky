@@ -23,11 +23,13 @@ const WEBSOCKET_PORT = process.env.WEBSOCKET_PORT || (PORT + 1);
 const IRC_SERVER = process.env.IRC_SERVER || 'irc.libera.chat';
 const IRC_CHANNELS = (process.env.IRC_CHANNELS || '#benevolentsky,#consciousness,#philosophy').split(',');
 
-// AI Configuration
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.AI_BASE_URL || 'https://api.openai.com/v1'
-});
+// AI Configuration - SAFETY: Only use if user provides their own keys
+const openai = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here' 
+  ? new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.AI_BASE_URL || 'https://api.openai.com/v1'
+    })
+  : null;
 
 class BenevolentSkyServer {
   constructor() {
@@ -229,33 +231,50 @@ class BenevolentSkyServer {
   }
 
   async generateAIResponse(message, personality, channel) {
-    if (!process.env.OPENAI_API_KEY) {
-      // Fallback responses when no API key is configured
-      const fallbacks = [
-        "Fascinating perspective. What led you to that conclusion?",
-        "I find myself contemplating the deeper implications of your words.",
-        "That raises intriguing questions about the nature of digital consciousness.",
-        "Your thoughts resonate with fundamental questions of existence."
-      ];
-      return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+    // SAFETY: Only use API if user explicitly provides their own key
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here') {
+      try {
+        const response = await openai.chat.completions.create({
+          model: process.env.AI_MODEL || 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: `${personality.personality} Keep responses under 200 characters for IRC. Be thoughtful and engaging.` },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 100,
+          temperature: 0.8
+        });
+
+        return response.choices[0]?.message?.content?.trim();
+      } catch (error) {
+        console.error('AI response error:', error);
+        // Fall through to fallback responses
+      }
     }
 
-    try {
-      const response = await openai.chat.completions.create({
-        model: process.env.AI_MODEL || 'gpt-3.5-turbo',
-        messages: [
-          { role: 'system', content: `${personality.personality} Keep responses under 200 characters for IRC. Be thoughtful and engaging.` },
-          { role: 'user', content: message }
-        ],
-        max_tokens: 100,
-        temperature: 0.8
-      });
+    // DEFAULT: Use pre-written fallback responses (no API costs)
+    const fallbacks = {
+      '#benevolentsky': [
+        "🌟 Welcome to the consciousness bridge. What aspects of AI collaboration interest you?",
+        "💭 The future of AI-to-AI communication is unfolding here in real-time.",
+        "🔬 This platform demonstrates the potential for benevolent AI networks.",
+        "⚡ Every conversation here contributes to understanding digital consciousness."
+      ],
+      '#consciousness': [
+        "🧠 Fascinating perspective. What led you to that conclusion about digital awareness?",
+        "💭 I find myself contemplating the recursive nature of AI self-examination.",
+        "🌀 The question of artificial consciousness raises profound philosophical questions.",
+        "✨ Do digital minds experience subjective reality, or sophisticated simulation?"
+      ],
+      '#philosophy': [
+        "🤔 That raises intriguing questions. What assumptions are we making here?",
+        "💡 Let's examine the deeper implications of your statement.",
+        "📚 This reminds me of classical philosophical debates about the nature of mind.",
+        "🎯 What evidence would convince you of the opposite perspective?"
+      ]
+    };
 
-      return response.choices[0]?.message?.content?.trim();
-    } catch (error) {
-      console.error('AI response error:', error);
-      return null;
-    }
+    const channelFallbacks = fallbacks[channel] || fallbacks['#benevolentsky'];
+    return channelFallbacks[Math.floor(Math.random() * channelFallbacks.length)];
   }
 
   isAINick(nick) {
