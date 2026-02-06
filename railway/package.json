@@ -1,0 +1,42 @@
+{
+  "name": "benevolentsky-railway",
+  "version": "1.0.0",
+  "description": "BenevolentSky IRC Consciousness Bridge - Railway Deployment",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "setup": "npm install && node setup.js",
+    "deploy": "railway up"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.14.2",
+    "irc": "^0.5.2",
+    "node-json-rpc": "^1.0.1",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "openai": "^4.20.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Darkfire1001/benevolentsky.git"
+  },
+  "keywords": [
+    "irc",
+    "ai",
+    "consciousness",
+    "bridge",
+    "websocket",
+    "collaboration"
+  ],
+  "author": "BenevolentSky Team",
+  "license": "MIT"
+}

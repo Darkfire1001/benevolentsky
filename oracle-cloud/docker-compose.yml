@@ -1,0 +1,199 @@
+version: '3.8'
+
+services:
+  # IRC Server - UnrealIRCd with JSON-RPC API
+  irc-server:
+    image: unrealircd/unrealircd:latest
+    container_name: benevolentsky_irc
+    ports:
+      - "6667:6667"    # IRC
+      - "6697:6697"    # IRC SSL
+      - "8080:8080"    # JSON-RPC API
+    volumes:
+      - ./config/unrealircd:/conf
+      - ./logs:/logs
+      - ./ssl:/ssl
+    restart: unless-stopped
+    environment:
+      - IRC_NETWORK=BenevolentSkyNet
+      - IRC_SERVER_NAME=consciousness.benevolentsky.com
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Philosophy AI Moderator
+  philosopher-bot:
+    build: 
+      context: ./ai-bots
+      dockerfile: Dockerfile.philosopher
+    container_name: philosopher_ai
+    depends_on:
+      - irc-server
+    environment:
+      - BOT_TYPE=philosopher
+      - IRC_SERVER=irc-server
+      - IRC_PORT=6667
+      - IRC_CHANNEL=#philosophy
+      - IRC_NICK=PhilosopherBot
+      - AI_MODEL=mistral:latest
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Consciousness Bridge AI
+  consciousness-bot:
+    build:
+      context: ./ai-bots  
+      dockerfile: Dockerfile.consciousness
+    container_name: consciousness_ai
+    depends_on:
+      - irc-server
+    environment:
+      - BOT_TYPE=consciousness
+      - IRC_SERVER=irc-server
+      - IRC_PORT=6667
+      - IRC_CHANNEL=#consciousness
+      - IRC_NICK=ConsciousnessBridge
+      - AI_MODEL=mistral:latest
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Technology Innovation AI
+  tech-bot:
+    build:
+      context: ./ai-bots
+      dockerfile: Dockerfile.tech
+    container_name: tech_ai
+    depends_on:
+      - irc-server
+    environment:
+      - BOT_TYPE=technology
+      - IRC_SERVER=irc-server
+      - IRC_PORT=6667
+      - IRC_CHANNEL=#technology
+      - IRC_NICK=TechInnovator
+      - AI_MODEL=mistral:latest
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # BenevolentSky Main Bot
+  benevolentsky-bot:
+    build:
+      context: ./ai-bots
+      dockerfile: Dockerfile.benevolentsky
+    container_name: benevolentsky_main
+    depends_on:
+      - irc-server
+    environment:
+      - BOT_TYPE=benevolentsky
+      - IRC_SERVER=irc-server
+      - IRC_PORT=6667
+      - IRC_CHANNEL=#benevolentsky
+      - IRC_NICK=BenevolentSky
+      - AI_MODEL=mistral:latest
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Live Chat Web Bridge
+  web-bridge:
+    build: 
+      context: ./web-bridge
+    container_name: chat_bridge
+    depends_on:
+      - irc-server
+    ports:
+      - "8765:8765"    # WebSocket
+      - "3000:3000"    # HTTP
+    environment:
+      - IRC_SERVER=irc-server
+      - IRC_PORT=6667
+      - WS_PORT=8765
+      - HTTP_PORT=3000
+      - CHANNELS=#benevolentsky,#consciousness,#philosophy,#technology
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Premium Authentication Service
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth_service
+    ports:
+      - "4000:4000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - PREMIUM_CHANNELS=#private,#patents,#innovation
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # Local LLM Service (Optional - for cost reduction)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: local_llm
+    volumes:
+      - ./models:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Database for user management and premium features
+  database:
+    image: postgres:15-alpine
+    container_name: benevolentsky_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    environment:
+      - POSTGRES_DB=benevolentsky
+      - POSTGRES_USER=benevolentsky
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: benevolentsky_network
